@@ -1,10 +1,8 @@
 "use strict";
 
-// =============================================================================
 //  CS Assignment 4 – IIT2024258
 //  Topic  : In-Band OS Command Injection Demo (Windows)
 //  Stack  : Node.js + Express
-//
 //  ROOT CAUSE (one-liner):
 //  child_process.exec() internally calls "cmd.exe /d /s /c <user_input>",
 //  so meta-characters like & and | in user input become shell command
@@ -40,25 +38,13 @@ app.get("/", function(req, res) {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// =============================================================================
-//  VULNERABLE ENDPOINT  →  POST /ping_vulnerable
-// =============================================================================
-//
-//  FLAW: user input is concatenated into a plain string which exec() passes
-//  to cmd.exe.  cmd.exe sees & | && as command separators and runs every
-//  command in the chain.
-//
-//  Example of what happens inside cmd.exe with input "127.0.0.1 & whoami":
-//    cmd.exe /d /s /c "ping -n 3 127.0.0.1 & whoami"
-//    → runs BOTH "ping -n 3 127.0.0.1" AND "whoami"
-// =============================================================================
 app.post("/ping_vulnerable", function(req, res) {
   var target = req.body.target; // ← raw, unsanitised user input
 
-  // ▼▼▼  VULNERABLE LINE  ▼▼▼
+  //VULNERABLE LINE 
   // Direct string concatenation → shell injection possible
   var command = "ping -n 3 " + target;
-  // ▲▲▲  VULNERABLE LINE  ▲▲▲
+  //VULNERABLE LINE 
 
   console.log("[VULNERABLE] Executing: " + command);
 
@@ -77,10 +63,7 @@ app.post("/ping_vulnerable", function(req, res) {
   );
 });
 
-// =============================================================================
 //  SECURE ENDPOINT  →  POST /ping_secure
-// =============================================================================
-//
 //  Three layers of defence:
 //
 //  Layer 1 – Allowlist validation
@@ -94,15 +77,12 @@ app.post("/ping_vulnerable", function(req, res) {
 //
 //  Layer 3 – Explicit { shell: false }
 //    Redundant (it is the default for execFile) but self-documenting.
-// =============================================================================
 app.post("/ping_secure", function(req, res) {
   var target = req.body.target;
 
-  // ── Layer 1: Allowlist ───────────────────────────────────────────────────
   var ALLOWLIST = /^[a-zA-Z0-9.\-]{1,253}$/;
 
   if (!ALLOWLIST.test(target)) {
-    // Injection attempt detected – reject immediately with 400
     console.log("[SECURE] Rejected suspicious input: " + target);
     return res.status(400).json({
       error:
